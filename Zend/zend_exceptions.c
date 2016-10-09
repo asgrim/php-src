@@ -797,6 +797,18 @@ ZEND_METHOD(exception, addSuppressed)
 }
 /* }}} */
 
+/* {{{ proto array Exception|Error::getSuppressed()
+   Get the suppressed exception(s) */
+ZEND_METHOD(exception, getSuppressed)
+{
+	zval rv;
+
+	DEFAULT_0_PARAMS;
+
+	ZVAL_COPY(return_value, GET_PROPERTY(getThis(), ZEND_STR_SUPPRESSED));
+}
+/* }}} */
+
 /** {{{ Throwable method definition */
 const zend_function_entry zend_funcs_throwable[] = {
 	ZEND_ABSTRACT_ME(throwable, getMessage,       NULL)
@@ -808,6 +820,7 @@ const zend_function_entry zend_funcs_throwable[] = {
 	ZEND_ABSTRACT_ME(throwable, getTraceAsString, NULL)
 	ZEND_ABSTRACT_ME(throwable, __toString,       NULL)
 	ZEND_ABSTRACT_ME(throwable, addSuppressed,    NULL)
+	ZEND_ABSTRACT_ME(throwable, getSuppressed,    NULL)
 	ZEND_FE_END
 };
 /* }}} */
@@ -845,6 +858,7 @@ static const zend_function_entry default_exception_functions[] = {
 	ZEND_ME(exception, getTraceAsString, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
 	ZEND_ME(exception, __toString, NULL, 0)
 	ZEND_ME(exception, addSuppressed, arginfo_exception_addSuppressed, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
+	ZEND_ME(exception, getSuppressed, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
 	ZEND_FE_END
 };
 
