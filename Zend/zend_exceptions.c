@@ -267,6 +267,7 @@ ZEND_METHOD(exception, __construct)
 	zval  tmp, *object, *previous = NULL;
 	zend_class_entry *base_ce;
 	int    argc = ZEND_NUM_ARGS();
+	zval *suppressed, rv;
 
 	object = getThis();
 	base_ce = i_get_exception_base(object);
@@ -298,6 +299,9 @@ ZEND_METHOD(exception, __construct)
 	if (previous) {
 		zend_update_property_ex(base_ce, object, CG(known_strings)[ZEND_STR_PREVIOUS], previous);
 	}
+
+	suppressed = zend_read_property_ex(i_get_exception_base(object), (object), CG(known_strings)[ZEND_STR_SUPPRESSED], 0, &rv);
+	array_init(suppressed);
 }
 /* }}} */
 
@@ -337,6 +341,7 @@ ZEND_METHOD(error_exception, __construct)
 	zval   tmp, *object, *previous = NULL;
 	int    argc = ZEND_NUM_ARGS();
 	size_t message_len, filename_len;
+	zval *suppressed, rv;
 
 	if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET, argc, "|sllslO!", &message, &message_len, &code, &severity, &filename, &filename_len, &lineno, &previous, zend_ce_throwable) == FAILURE) {
 		zend_class_entry *ce;
@@ -382,6 +387,9 @@ ZEND_METHOD(error_exception, __construct)
 		ZVAL_LONG(&tmp, lineno);
 		zend_update_property_ex(zend_ce_exception, object, CG(known_strings)[ZEND_STR_LINE], &tmp);
 	}
+
+	suppressed = zend_read_property_ex(i_get_exception_base(object), (object), CG(known_strings)[ZEND_STR_SUPPRESSED], 0, &rv);
+	array_init(suppressed);
 }
 /* }}} */
 
@@ -771,14 +779,14 @@ ZEND_METHOD(exception, __toString)
    Attach a suppressed exception to this exception */
 ZEND_METHOD(exception, addSuppressed)
 {
-	zval   *object, *previous = NULL;
+	zval   *object, *suppressed, *newSuppressed = NULL, rv;
 	int    argc = ZEND_NUM_ARGS();
 	zend_class_entry *base_ce;
 
 	object = getThis();
 	base_ce = i_get_exception_base(object);
 
-	if (zend_parse_parameters(argc, "O!", &previous, zend_ce_throwable) == FAILURE) {
+	if (zend_parse_parameters(argc, "O!", &newSuppressed, zend_ce_throwable) == FAILURE) {
 		zend_class_entry *ce;
 
 		if (Z_TYPE(EX(This)) == IS_OBJECT) {
@@ -792,7 +800,8 @@ ZEND_METHOD(exception, addSuppressed)
 		return;
 	}
 
-	zend_update_property_ex(base_ce, object, CG(known_strings)[ZEND_STR_SUPPRESSED], previous);
+	suppressed = GET_PROPERTY(getThis(), ZEND_STR_SUPPRESSED);
+	add_next_index_zval(suppressed, newSuppressed);
 	RETURN_NULL();
 }
 /* }}} */
