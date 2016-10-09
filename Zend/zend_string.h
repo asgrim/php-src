@@ -410,6 +410,7 @@ static zend_always_inline void zend_zts_interned_string_free(zend_string **s)
 	_(ZEND_STR_SEVERITY,               "severity") \
 	_(ZEND_STR_STRING,                 "string") \
 	_(ZEND_STR_TRACE,                  "trace") \
+	_(ZEND_STR_SUPPRESSED,             "suppressed") \
 
 
 typedef enum _zend_known_string_id {

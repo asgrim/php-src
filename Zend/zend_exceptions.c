@@ -767,6 +767,36 @@ ZEND_METHOD(exception, __toString)
 }
 /* }}} */
 
+/* {{{ proto string Exception|Error::addSuppressed()
+   Attach a suppressed exception to this exception */
+ZEND_METHOD(exception, addSuppressed)
+{
+	zval   *object, *previous = NULL;
+	int    argc = ZEND_NUM_ARGS();
+	zend_class_entry *base_ce;
+
+	object = getThis();
+	base_ce = i_get_exception_base(object);
+
+	if (zend_parse_parameters(argc, "O!", &previous, zend_ce_throwable) == FAILURE) {
+		zend_class_entry *ce;
+
+		if (Z_TYPE(EX(This)) == IS_OBJECT) {
+			ce = Z_OBJCE(EX(This));
+		} else if (Z_CE(EX(This))) {
+			ce = Z_CE(EX(This));
+		} else {
+			ce = zend_ce_error_exception;
+		}
+		zend_throw_error(NULL, "Wrong parameters for %s(Throwable $previous)", ZSTR_VAL(ce->name));
+		return;
+	}
+
+	zend_update_property_ex(base_ce, object, CG(known_strings)[ZEND_STR_SUPPRESSED], previous);
+	RETURN_NULL();
+}
+/* }}} */
+
 /** {{{ Throwable method definition */
 const zend_function_entry zend_funcs_throwable[] = {
 	ZEND_ABSTRACT_ME(throwable, getMessage,       NULL)
@@ -777,6 +807,7 @@ const zend_function_entry zend_funcs_throwable[] = {
 	ZEND_ABSTRACT_ME(throwable, getPrevious,      NULL)
 	ZEND_ABSTRACT_ME(throwable, getTraceAsString, NULL)
 	ZEND_ABSTRACT_ME(throwable, __toString,       NULL)
+	ZEND_ABSTRACT_ME(throwable, addSuppressed,    NULL)
 	ZEND_FE_END
 };
 /* }}} */
@@ -797,6 +828,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_exception___construct, 0, 0, 0)
 	ZEND_ARG_INFO(0, previous)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_exception_addSuppressed, 0, 0, 0)
+	ZEND_ARG_INFO(0, suppressed)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry default_exception_functions[] = {
 	ZEND_ME(exception, __clone, NULL, ZEND_ACC_PRIVATE|ZEND_ACC_FINAL)
 	ZEND_ME(exception, __construct, arginfo_exception___construct, ZEND_ACC_PUBLIC)
@@ -809,6 +844,7 @@ static const zend_function_entry default_exception_functions[] = {
 	ZEND_ME(exception, getPrevious, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
 	ZEND_ME(exception, getTraceAsString, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
 	ZEND_ME(exception, __toString, NULL, 0)
+	ZEND_ME(exception, addSuppressed, arginfo_exception_addSuppressed, ZEND_ACC_PUBLIC|ZEND_ACC_FINAL)
 	ZEND_FE_END
 };
 
@@ -849,6 +885,7 @@ void zend_register_default_exception(void) /* {{{ */
 	zend_declare_property_null(zend_ce_exception, "line", sizeof("line")-1, ZEND_ACC_PROTECTED);
 	zend_declare_property_null(zend_ce_exception, "trace", sizeof("trace")-1, ZEND_ACC_PRIVATE);
 	zend_declare_property_null(zend_ce_exception, "previous", sizeof("previous")-1, ZEND_ACC_PRIVATE);
+	zend_declare_property_null(zend_ce_exception, "suppressed", sizeof("suppressed")-1, ZEND_ACC_PRIVATE);
 
 	INIT_CLASS_ENTRY(ce, "ErrorException", error_exception_functions);
 	zend_ce_error_exception = zend_register_internal_class_ex(&ce, zend_ce_exception);
@@ -867,6 +904,7 @@ void zend_register_default_exception(void) /* {{{ */
 	zend_declare_property_null(zend_ce_error, "line", sizeof("line")-1, ZEND_ACC_PROTECTED);
 	zend_declare_property_null(zend_ce_error, "trace", sizeof("trace")-1, ZEND_ACC_PRIVATE);
 	zend_declare_property_null(zend_ce_error, "previous", sizeof("previous")-1, ZEND_ACC_PRIVATE);
+	zend_declare_property_null(zend_ce_error, "suppressed", sizeof("suppressed")-1, ZEND_ACC_PRIVATE);
 
 	INIT_CLASS_ENTRY(ce, "ParseError", NULL);
 	zend_ce_parse_error = zend_register_internal_class_ex(&ce, zend_ce_error);
