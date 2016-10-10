@@ -780,23 +780,12 @@ ZEND_METHOD(exception, __toString)
 ZEND_METHOD(exception, addSuppressed)
 {
 	zval   *object, *suppressed, *newSuppressed = NULL, rv;
-	int    argc = ZEND_NUM_ARGS();
 	zend_class_entry *base_ce;
 
 	object = getThis();
 	base_ce = i_get_exception_base(object);
 
-	if (zend_parse_parameters(argc, "O!", &newSuppressed, zend_ce_throwable) == FAILURE) {
-		zend_class_entry *ce;
-
-		if (Z_TYPE(EX(This)) == IS_OBJECT) {
-			ce = Z_OBJCE(EX(This));
-		} else if (Z_CE(EX(This))) {
-			ce = Z_CE(EX(This));
-		} else {
-			ce = zend_ce_error_exception;
-		}
-		zend_throw_error(NULL, "Wrong parameters for %s(Throwable $previous)", ZSTR_VAL(ce->name));
+	if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "O", &newSuppressed, zend_ce_throwable) == FAILURE) {
 		return;
 	}
 
