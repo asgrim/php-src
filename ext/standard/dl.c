@@ -38,6 +38,22 @@
 #endif
 #endif /* defined(HAVE_LIBDL) */
 
+PHPAPI PHP_FUNCTION(scoped_dl)
+{
+	char *filename, *scope;
+	size_t filename_len, scope_len;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+		Z_PARAM_STRING(scope, scope_len)
+		Z_PARAM_STRING(filename, filename_len)
+	ZEND_PARSE_PARAMETERS_END();
+
+	php_scoped_dl(filename, scope, MODULE_TEMPORARY, return_value, 0);
+	if (Z_TYPE_P(return_value) == IS_TRUE) {
+		EG(full_tables_cleanup) = 1;
+	}
+}
+
 /* {{{ Load a PHP extension at runtime */
 PHPAPI PHP_FUNCTION(dl)
 {
@@ -107,11 +123,11 @@ PHPAPI void *php_load_shlib(const char *path, char **errp)
 /* }}} */
 
 /* {{{ php_load_extension */
-PHPAPI int php_load_extension(const char *filename, int type, int start_now)
+PHPAPI int php_load_extension(const char *filename, const char *scope, int type, int start_now)
 {
 	void *handle;
 	char *libpath;
-	zend_module_entry *module_entry;
+	zend_module_entry *orig_module_entry, *module_entry;
 	zend_module_entry *(*get_module)(void);
 	int error_type, slash_suffix = 0;
 	char *extension_dir;
@@ -132,10 +148,10 @@ PHPAPI int php_load_extension(const char *filename, int type, int start_now)
 	/* Check if passed filename contains directory separators */
 	if (strchr(filename, '/') != NULL || strchr(filename, DEFAULT_SLASH) != NULL) {
 		/* Passing modules with full path is not supported for dynamically loaded extensions */
-		if (type == MODULE_TEMPORARY) {
-			php_error_docref(NULL, E_WARNING, "Temporary module name should contain only filename");
-			return FAILURE;
-		}
+		// if (type == MODULE_TEMPORARY) {
+			// php_error_docref(NULL, E_WARNING, "Temporary module name should contain only filename");
+			// return FAILURE;
+		// }
 		libpath = estrdup(filename);
 	} else if (extension_dir && extension_dir[0]) {
 		slash_suffix = IS_SLASH(extension_dir[strlen(extension_dir)-1]);
@@ -204,7 +220,39 @@ PHPAPI int php_load_extension(const char *filename, int type, int start_now)
 		php_error_docref(NULL, error_type, "Invalid library (maybe not a PHP library) '%s'", filename);
 		return FAILURE;
 	}
-	module_entry = get_module();
+	orig_module_entry = get_module();
+	char *scoped_module_name = malloc(strlen(scope) + strlen("::") + strlen(orig_module_entry->name));
+	sprintf(scoped_module_name, "%s::%s", scope, orig_module_entry->name);
+	zend_module_entry *new_module_entry = malloc(sizeof(zend_module_entry));
+	new_module_entry->size = orig_module_entry->size;
+	new_module_entry->zend_api = orig_module_entry->zend_api;
+	new_module_entry->zend_debug = orig_module_entry->zend_debug;
+	new_module_entry->zts = orig_module_entry->zts;
+	new_module_entry->ini_entry = orig_module_entry->ini_entry;
+	new_module_entry->deps = orig_module_entry->deps;
+	new_module_entry->name = scoped_module_name;
+	new_module_entry->functions = NULL; // @todo will need to scope: orig_module_entry->functions,
+	new_module_entry->module_startup_func = orig_module_entry->module_startup_func;
+	new_module_entry->module_shutdown_func = orig_module_entry->module_shutdown_func;
+	new_module_entry->request_startup_func = orig_module_entry->request_startup_func;
+	new_module_entry->request_shutdown_func = orig_module_entry->request_shutdown_func;
+	new_module_entry->info_func = orig_module_entry->info_func;
+	new_module_entry->version = orig_module_entry->version;
+	new_module_entry->globals_size = orig_module_entry->globals_size;
+#ifdef ZTS
+	new_module_entry->globals_id_ptr = orig_module_entry->globals_id_ptr;
+#else
+	new_module_entry->globals_ptr = orig_module_entry->globals_ptr;
+#endif
+	new_module_entry->globals_ctor = orig_module_entry->globals_ctor;
+	new_module_entry->globals_dtor = orig_module_entry->globals_dtor;
+	new_module_entry->post_deactivate_func = orig_module_entry->post_deactivate_func;
+	new_module_entry->module_started = orig_module_entry->module_started;
+	new_module_entry->type = orig_module_entry->type;
+	new_module_entry->handle = orig_module_entry->handle;
+	new_module_entry->module_number = orig_module_entry->module_number;
+	new_module_entry->build_id = orig_module_entry->build_id;
+	module_entry = new_module_entry;
 	if (zend_hash_str_exists(&module_registry, module_entry->name, strlen(module_entry->name))) {
 		zend_error(E_CORE_WARNING, "Module \"%s\" is already loaded", module_entry->name);
 		DL_UNLOAD(handle);
@@ -220,16 +268,16 @@ PHPAPI int php_load_extension(const char *filename, int type, int start_now)
 			DL_UNLOAD(handle);
 			return FAILURE;
 	}
-	if(strcmp(module_entry->build_id, ZEND_MODULE_BUILD_ID)) {
-		php_error_docref(NULL, error_type,
-				"%s: Unable to initialize module\n"
-				"Module compiled with build ID=%s\n"
-				"PHP    compiled with build ID=%s\n"
-				"These options need to match\n",
-				module_entry->name, module_entry->build_id, ZEND_MODULE_BUILD_ID);
-		DL_UNLOAD(handle);
-		return FAILURE;
-	}
+	// if(strcmp(module_entry->build_id, ZEND_MODULE_BUILD_ID)) {
+	// 	php_error_docref(NULL, error_type,
+	// 			"%s: Unable to initialize module\n"
+	// 			"Module compiled with build ID=%s\n"
+	// 			"PHP    compiled with build ID=%s\n"
+	// 			"These options need to match\n",
+	// 			module_entry->name, module_entry->build_id, ZEND_MODULE_BUILD_ID);
+	// 	DL_UNLOAD(handle);
+	// 	return FAILURE;
+	// }
 
 	if ((module_entry = zend_register_module_ex(module_entry, type)) == NULL) {
 		DL_UNLOAD(handle);
@@ -281,7 +329,19 @@ PHPAPI int php_load_extension(const char *filename, int type, int start_now)
 PHPAPI void php_dl(const char *file, int type, zval *return_value, int start_now)
 {
 	/* Load extension */
-	if (php_load_extension(file, type, start_now) == FAILURE) {
+	if (php_load_extension(file, "", type, start_now) == FAILURE) {
+		RETVAL_FALSE;
+	} else {
+		RETVAL_TRUE;
+	}
+}
+/* }}} */
+
+/* {{{ php_dl */
+PHPAPI void php_scoped_dl(const char *file, const char *scope, int type, zval *return_value, int start_now)
+{
+	/* Load extension */
+	if (php_load_extension(file, scope, type, start_now) == FAILURE) {
 		RETVAL_FALSE;
 	} else {
 		RETVAL_TRUE;

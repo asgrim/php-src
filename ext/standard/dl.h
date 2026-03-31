@@ -19,12 +19,14 @@
 #ifndef DL_H
 #define DL_H
 
-PHPAPI int php_load_extension(const char *filename, int type, int start_now);
+PHPAPI int php_load_extension(const char *filename, const char *scope, int type, int start_now);
 PHPAPI void php_dl(const char *file, int type, zval *return_value, int start_now);
+PHPAPI void php_scoped_dl(const char *file, const char *scope, int type, zval *return_value, int start_now);
 PHPAPI void *php_load_shlib(const char *path, char **errp);
 
 /* dynamic loading functions */
 PHPAPI PHP_FUNCTION(dl);
+PHPAPI PHP_FUNCTION(scoped_dl);
 
 PHP_MINFO_FUNCTION(dl);
 

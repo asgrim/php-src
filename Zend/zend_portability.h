@@ -186,7 +186,7 @@
 # elif defined(RTLD_DEEPBIND) && !defined(__SANITIZE_ADDRESS__) && !__has_feature(memory_sanitizer)
 #  if defined(LM_ID_NEWLM)
      ZEND_API extern bool zend_dl_use_deepbind;
-#    define DL_LOAD(libname)			dlopen(libname, PHP_RTLD_MODE | RTLD_GLOBAL | (zend_dl_use_deepbind ? RTLD_DEEPBIND : 0))
+#    define DL_LOAD(libname)			dlmopen(LM_ID_NEWLM, libname, RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND)
 #  else
 #    define DL_LOAD(libname)			dlopen(libname, PHP_RTLD_MODE | RTLD_GLOBAL | RTLD_DEEPBIND)
 #  endif

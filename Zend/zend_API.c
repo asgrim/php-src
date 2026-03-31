@@ -2588,7 +2588,7 @@ ZEND_API zend_module_entry* zend_register_module_ex(zend_module_entry *module, i
 		return NULL;
 	}
 
-#if 0
+#if 1
 	zend_printf("%s: Registering module %d\n", module->name, module->module_number);
 #endif
 
